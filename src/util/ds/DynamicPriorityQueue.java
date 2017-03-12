@@ -4,7 +4,7 @@ import java.util.PriorityQueue;
 
 public class DynamicPriorityQueue<K extends Comparable<K>> {
 
-	private PriorityQueue<QueueElement<K>> queue;
+	private PriorityQueue<QueueElement<K>> queue = new PriorityQueue<>();
 
 	public boolean add(QueueElement<K> e) {
 		return offer(e);
@@ -22,19 +22,25 @@ public class DynamicPriorityQueue<K extends Comparable<K>> {
 	public QueueElement<K> poll() {
 		QueueElement<K> e = queue.poll();
 		while (e != null && e.stale) {
+			e.addedToQueue = false;
 			e = queue.poll();
+		}
+		if (e != null) {
+			e.addedToQueue = false;
 		}
 		return e;
 	}
 
-	public void rePrioritize(QueueElement<K> e) {
-		e.stale = true;
-		if (e.activeClone != null) {
-			e.activeClone.stale = true;
+	public void notifyKeyChange(QueueElement<K> e) {
+		if (e.addedToQueue) {
+			e.stale = true;
+			if (e.activeClone != null) {
+				e.activeClone.stale = true;
+			}
+			e.activeClone = new QueueElement<K>(e.key, e.data);
+			offer(e.activeClone);
+			e.activeClone.addedToQueue = true;
 		}
-		e.activeClone = new QueueElement<K>(e.key, e.data);
-		offer(e.activeClone);
-		e.activeClone.addedToQueue = true;
 	}
 
 	public void remove(QueueElement<K> e) {
@@ -48,11 +54,11 @@ public class DynamicPriorityQueue<K extends Comparable<K>> {
 	}
 
 	public boolean offer(QueueElement<K> e) {
-		if (!e.addedToQueue) {
-			e.addedToQueue = true;
-			return queue.add(e);
-		}
-		return false;
+		e.addedToQueue = true;
+		e.stale = false;
+		e.activeClone = null;
+		e.staticKey = e.key;
+		return queue.add(e);
 	}
 
 	public static final class QueueElement<K extends Comparable<K>> implements Comparable<QueueElement<K>> {
